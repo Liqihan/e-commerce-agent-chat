@@ -48,6 +48,22 @@ function extractOutputText(data: any): string {
   return "";
 }
 
+function normalizeClaudeResult(result: any): string {
+  const direct = result?.result;
+  if (typeof direct === "string") {
+    const match = direct.match(/result:\s*['"]([^'"]+)['"]/s);
+    if (match?.[1]) return match[1];
+    return direct;
+  }
+  if (direct && typeof direct === "object") {
+    if (typeof direct.result === "string") return direct.result;
+  }
+  if (result && typeof result.content === "string") return result.content;
+  const outputText = extractOutputText(result);
+  if (outputText) return outputText;
+  return "";
+}
+
 async function callClaude(messages: ChatMessage[]): Promise<string> {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_AUTH_TOKEN is not set.");
@@ -63,7 +79,8 @@ async function callClaude(messages: ChatMessage[]): Promise<string> {
     tools: Object.values(registeredSkills)
   });
 
-  return result?.content || "抱歉，我暂时没有生成有效的回复。";
+  const normalized = normalizeClaudeResult(result);
+  return normalized || "抱歉，我暂时没有生成有效的回复。";
 }
 
 const __filename = fileURLToPath(import.meta.url);

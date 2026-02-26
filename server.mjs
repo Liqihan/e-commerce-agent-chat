@@ -38,6 +38,22 @@ function extractOutputText(data) {
   return "";
 }
 
+function normalizeClaudeResult(result) {
+  const direct = result?.result;
+  if (typeof direct === "string") {
+    const match = direct.match(/result:\s*['"]([^'"]+)['"]/s);
+    if (match?.[1]) return match[1];
+    return direct;
+  }
+  if (direct && typeof direct === "object") {
+    if (typeof direct.result === "string") return direct.result;
+  }
+  if (result && typeof result.content === "string") return result.content;
+  const outputText = extractOutputText(result);
+  if (outputText) return outputText;
+  return "";
+}
+
 async function callClaude(messages) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_AUTH_TOKEN is not set.");
@@ -46,14 +62,16 @@ async function callClaude(messages) {
   // Extract the last user message as the task
   const lastMessage = messages[messages.length - 1]?.content || "";
 
+
   // Use Claude Agent SDK with skills
   const result = await unstable_v2_prompt(lastMessage, {
     apiKey: ANTHROPIC_API_KEY,
     baseUrl: ANTHROPIC_BASE_URL,
-    tools: Object.values(registeredSkills)
+    tools: Object.values(registeredSkills),
   });
 
-  return result?.content || "抱歉，我暂时没有生成有效的回复。";
+  const normalized = normalizeClaudeResult(result);
+  return normalized || "抱歉，我暂时没有生成有效的回复。";
 }
 
 const __filename = fileURLToPath(import.meta.url);

@@ -1,12 +1,10 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "url";
-import path, { dirname } from "path";
+import { dirname } from "path";
 import dotenv from "dotenv";
-import { unstable_v2_prompt, tool } from "@anthropic-ai/claude-agent-sdk";
-import { mainImagePlanningSkill, marketInsightSkill } from "./skills";
+import { unstable_v2_prompt } from "@anthropic-ai/claude-agent-sdk";
+import { mainImagePlanningSkill, marketInsightSkill } from "./skills/index.js";
 
 // Register skills
 const registeredSkills = {
@@ -18,18 +16,10 @@ const registeredSkills = {
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
-const ANTHROPIC_API_KEY =
-  process.env.ANTHROPIC_AUTH_TOKEN?.trim() ??
-  "sk-rDvSOK68j4iCJ45vxgC9YhA1o5ZNkZ4UBA6gxX5yZIdR1Ej8";
-const ANTHROPIC_BASE_URL =
-  process.env.ANTHROPIC_BASE_URL ?? "https://aiberm.com";
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_AUTH_TOKEN?.trim();
+const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com";
 
-type ChatMessage = {
-  role: "user" | "assistant" | "system";
-  content: string;
-};
-
-function extractOutputText(data: any): string {
+function extractOutputText(data) {
   const output = data?.output;
   if (!Array.isArray(output)) return "";
 
@@ -38,8 +28,8 @@ function extractOutputText(data: any): string {
       continue;
     }
     const parts = item.content
-      .filter((c: any) => c?.type === "output_text" && typeof c.text === "string")
-      .map((c: any) => c.text);
+      .filter((c) => c?.type === "output_text" && typeof c.text === "string")
+      .map((c) => c.text);
     if (parts.length > 0) {
       return parts.join("");
     }
@@ -48,7 +38,7 @@ function extractOutputText(data: any): string {
   return "";
 }
 
-async function callClaude(messages: ChatMessage[]): Promise<string> {
+async function callClaude(messages) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_AUTH_TOKEN is not set.");
   }
@@ -83,9 +73,9 @@ async function startServer() {
         return res.status(400).json({ error: "Invalid messages payload" });
       }
 
-      const normalizedMessages: ChatMessage[] = messages
-        .filter((m: any) => m && typeof m.role === "string")
-        .map((m: any) => ({
+      const normalizedMessages = messages
+        .filter((m) => m && typeof m.role === "string")
+        .map((m) => ({
           role: m.role,
           content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
         }));
@@ -132,20 +122,7 @@ async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      configFile: false,
-      plugins: [react(), tailwindcss()],
-      define: {
-        "process.env.GEMINI_API_KEY": JSON.stringify(process.env.GEMINI_API_KEY),
-      },
-      resolve: {
-        alias: {
-          "@app": path.resolve(__dirname, "src"),
-        },
-      },
-      server: {
-        middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== "true",
-      },
+      server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
